@@ -1,0 +1,28 @@
+name: Test my MCP server
+description: Get a free health and security score for a public MCP server. It will be listed on the public leaderboard.
+title: "Test request: "
+labels: ["scan-request"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        A robot will test your server and reply here with a score. **Results are public.**
+        Limits: 5 tests per day in total, 2 per person. Resets at 00:00 UTC.
+        Only public `https://` servers that need no login can be tested here.
+        For anything else, run MCPDoctor yourself: `pip install mcpdoctor`.
+  - type: input
+    id: url
+    attributes:
+      label: MCP server address
+      description: The full https address of your server's MCP endpoint, for example https://example.com/mcp
+      placeholder: https://example.com/mcp
+    validations:
+      required: true
+  - type: checkboxes
+    id: permission
+    attributes:
+      label: Permission
+      description: Testing sends a few dozen calls, including some unusual inputs, to the server.
+      options:
+        - label: I own this server, or I have permission to test it, and I am happy for the result to be public.
+          required: true

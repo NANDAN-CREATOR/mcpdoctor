@@ -28,7 +28,7 @@ FINDINGS (12)  3 critical, 1 high, 3 medium, 5 low
 4. [How it works](#how-it-works) · 5. [What it checks](#what-it-checks) · 6. [How scoring works](#how-scoring-works) ·
 7. [CLI reference](#cli-reference) · 8. [Configuration](#configuration) · 9. [Use in CI](#use-in-ci-github) ·
 10. [Sandbox](#sandbox) · 11. [LLM agent evaluation](#llm-agent-evaluation) · 12. [Reports](#reports) ·
-13. [Expectations: what it can and cannot tell you](#expectations-what-it-can-and-cannot-tell-you) ·
+13. [Expectations: what it can and cannot tell you](#expectations-what-it-can-and-cannot-tell-you) · [Public dashboard](#public-dashboard-and-community-scans) ·
 14. [Measured results](#measured-results) · 15. [Project layout](#project-layout) · 16. [Status and roadmap](#status-and-roadmap)
 
 ## Who it is for
@@ -226,6 +226,29 @@ mcpdoctor scan --llm ollama --model qwen3:8b -- python my_server.py        # ful
 Rate limits are respected (`--llm-rpm`, default 15; retries on 429/5xx). API keys are read from the environment and never
 printed or written to reports. Default model names are in `evals/llm.py` and may go stale: pass `--model`.
 
+## Public dashboard and community scans
+A live leaderboard is published at **https://nandan-creator.github.io/mcpdoctor/**. Anyone can have a public MCP server
+tested for free:
+
+1. Open the form: **Issues > New issue > "Test my MCP server"** (or the "Test my server" button on the dashboard).
+2. Paste the public `https://` address and tick the permission box.
+3. A GitHub Action tests it and replies on the issue with the score; the result then appears on the dashboard.
+
+**Limits (to keep it free and safe):** 5 tests per UTC day in total, 2 per person; the repository owner is exempt from
+the per-person limit only. Counting is done by the workflow from the issues labelled `scan-accepted`.
+
+**How it is kept safe** (see `.github/workflows/scan-request.yml`, `src/mcpdoctor/submission.py`):
+- Only `https://` addresses on port 443, with a real domain name. No IP addresses, no credentials or query strings in the
+  address, and the name must resolve to public addresses only (no private, loopback or link-local networks).
+- The issue text is untrusted: it reaches code only through environment variables, never inside a shell script.
+- Three jobs with the least privilege each: `gate` (validates, applies the limits), `scan` (the only job that contacts the
+  stranger's server; read-only token, cloud metadata address blocked), `publish` (writes the stored result; never runs
+  anything produced by `scan`).
+- Servers that need a login cannot be tested (no secrets are accepted). Results are public; deletion on request.
+- Stored results live on the `leaderboard-data` branch; the site is rebuilt after each submission and nightly.
+- Residual risks: a server that redirects to a non-public address after validation is only partly mitigated (metadata
+  address blocked; the runner has no secrets); a determined person can use their 2 daily tests per account.
+
 ## Reports
 | Format | Use |
 |---|---|
@@ -277,13 +300,13 @@ Run `pytest -q -s tests/test_corpus.py` to reproduce.
 same author as the detectors, so it shows the rules work as designed, **not** a measured false-negative rate against
 real-world servers. Scanning independent public servers and recording the false-positive rate is the first roadmap item.
 
-Test suite: 67 passing (1 Docker test skipped without a daemon), `ruff` and `mypy` clean.
+Test suite: 109 passing (1 Docker test skipped without a daemon), `ruff` and `mypy` clean.
 
 ## Project layout
 ```
 src/mcpdoctor/   cli.py runner.py session.py target.py rules.py models.py scoring.py
                  lint.py security_static.py http_checks.py probes.py synth.py pin.py sandbox.py
-                 settings.py leaderboard.py evals/{llm,agent}.py report/{terminal,json,sarif,markdown,html,badge}.py
+                 settings.py leaderboard.py submission.py evals/{llm,agent}.py report/{terminal,json,sarif,markdown,html,badge}.py
 examples/servers/ one clean server, six broken ones, and an HTTP variant
 tests/           corpus benchmark, unit tests, mock-LLM test, HTTP tests
 docs/            ARCHITECTURE.md  RULES.md (generated)

@@ -1,0 +1,129 @@
+name: Scan request
+# Anyone can open an issue from the "Test my MCP server" form. The issue text and the address are UNTRUSTED:
+#  - they reach scripts only through environment variables (never ${{ }} inside a shell script)
+#  - the job that contacts the stranger's server (scan) has no write token and no secrets
+#  - the job that writes (publish) never runs anything produced by scan, it only copies files our own code generated
+on:
+  issues:
+    types: [opened]
+
+# One request at a time, so the daily counter cannot be raced.
+concurrency:
+  group: scan-requests
+  cancel-in-progress: false
+
+permissions: {}
+
+jobs:
+  gate:
+    if: contains(github.event.issue.labels.*.name, 'scan-request')
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      issues: write
+      contents: read
+    outputs:
+      accepted: ${{ steps.gate.outputs.accepted }}
+      url: ${{ steps.gate.outputs.url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install .
+      - id: gate
+        run: python scripts/submission.py gate
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          ISSUE_USER: ${{ github.event.issue.user.login }}
+          ISSUE_BODY: ${{ github.event.issue.body }}
+
+  scan:
+    needs: gate
+    if: needs.gate.outputs.accepted == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    permissions:
+      contents: read        # nothing else: this job talks to a stranger's server
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install .
+      - name: Block the cloud metadata endpoint (defence in depth against redirects)
+        run: sudo iptables -A OUTPUT -d 169.254.169.254 -j REJECT
+      - name: Scan
+        run: python scripts/submission.py scan
+        env:
+          SERVER_URL: ${{ needs.gate.outputs.url }}
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: result
+          path: submission-out/
+          if-no-files-found: ignore
+          retention-days: 3
+
+  publish:
+    needs: [gate, scan]
+    if: always() && needs.gate.outputs.accepted == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write       # push the stored result to the leaderboard-data branch
+      issues: write         # comment and close
+      actions: write        # trigger the site rebuild
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install .
+      - uses: actions/download-artifact@v4
+        continue-on-error: true
+        with:
+          name: result
+          path: submission-out
+      - name: Does the data branch exist?
+        id: branch
+        run: |
+          if git ls-remote --exit-code --heads origin leaderboard-data >/dev/null 2>&1; then echo "exists=true" >> "$GITHUB_OUTPUT"; else echo "exists=false" >> "$GITHUB_OUTPUT"; fi
+      - uses: actions/checkout@v4
+        if: steps.branch.outputs.exists == 'true'
+        with:
+          ref: leaderboard-data
+          path: data
+      - name: Start the data branch
+        if: steps.branch.outputs.exists != 'true'
+        run: |
+          git init -b leaderboard-data data
+          git -C data remote add origin "https://github.com/${{ github.repository }}.git"
+      - name: Store the result and answer the requester
+        run: python scripts/submission.py publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          DATA_DIR: data
+      - name: Commit the stored result
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cd data
+          git config user.name "mcpdoctor-bot"
+          git config user.email "mcpdoctor-bot@users.noreply.github.com"
+          git add -A
+          if git diff --cached --quiet; then echo "nothing to store"; exit 0; fi
+          git commit -m "Add community scan from issue #${{ github.event.issue.number }}"
+          auth="$(printf 'x-access-token:%s' "$GH_TOKEN" | base64 -w0)"
+          git -c http.extraheader="AUTHORIZATION: basic $auth" push origin HEAD:leaderboard-data
+      - name: Rebuild the public site
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow run nightly-leaderboard.yml --repo "${{ github.repository }}" || true

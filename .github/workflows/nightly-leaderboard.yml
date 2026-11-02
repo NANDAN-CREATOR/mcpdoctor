@@ -1,4 +1,5 @@
 name: Nightly leaderboard
+# Also triggered by scan-request.yml after each community test, so new results appear within minutes.
 on:
   schedule:
     - cron: "17 3 * * *"
@@ -25,8 +26,15 @@ jobs:
         with:
           node-version: "22"
       - run: pip install -e .
-      - name: Scan every server in examples/leaderboard-servers.yaml
-        run: mcpdoctor leaderboard examples/leaderboard-servers.yaml --out site
+      - name: Fetch stored community results (branch may not exist yet)
+        run: |
+          if git ls-remote --exit-code --heads origin leaderboard-data >/dev/null 2>&1; then
+            git clone --depth 1 --branch leaderboard-data "https://github.com/${{ github.repository }}.git" data
+          else
+            mkdir data
+          fi
+      - name: Scan every demo server and build the site (demo list + community results)
+        run: mcpdoctor leaderboard examples/leaderboard-servers.yaml --out site --submissions data
       - uses: actions/upload-pages-artifact@v3
         with:
           path: site
