@@ -351,17 +351,19 @@ def init(server_command: str, force: bool) -> None:
 @click.option("--out", "out_dir", default="site", show_default=True, type=click.Path(file_okay=False))
 @click.option("--call-timeout", type=float, default=15.0, show_default=True)
 @click.option("--time-budget", type=float, default=120.0, show_default=True, help="Probing seconds per server.")
+@click.option("--site-config", "site_config", type=click.Path(dir_okay=False),
+              help="JSON with submit_api and turnstile_sitekey to enable the on-page form (default ./site-config.json).")
 @click.option("--submissions", "submissions_dir", type=click.Path(file_okay=False),
               help="Directory with stored community results (index.json + reports/) to include.")
 def leaderboard(servers_file: str, out_dir: str, call_timeout: float, time_budget: float,
-                submissions_dir: str | None) -> None:
+                site_config: str | None, submissions_dir: str | None) -> None:
     """Scan every server listed in SERVERS_FILE (YAML) and write a static leaderboard site."""
     from mcpdoctor.leaderboard import build
 
     try:
         reports = asyncio.run(build(servers_file, out_dir, ScanOptions(call_timeout=call_timeout,
                                                                       time_budget_s=time_budget),
-                                     submissions_dir))
+                                     submissions_dir, site_config))
     except TargetError as exc:
         raise _fail(str(exc)) from exc
     for r in reports:

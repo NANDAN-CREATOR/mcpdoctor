@@ -132,3 +132,31 @@ def test_results_are_stored_published_and_hostile_rows_ignored(http_server, tmp_
     assert "<script>alert(1)" not in page and "../../etc" not in page
     assert (site / f"{row['slug']}.html").exists()
     assert "ok-slug" not in page   # no report file was stored for it, so it is not listed
+
+
+def test_web_submissions_are_counted_per_anonymous_id_not_per_owner():
+    from mcpdoctor.submission import effective_user
+    body = "### MCP server address\n\nhttps://example.com/mcp\n\n### Submitter\n\nweb-0123456789ab\n"
+    assert effective_user("NANDAN-CREATOR", body, "nandan-creator") == "web-0123456789ab"
+    assert effective_user("mallory", body, "nandan-creator") == "mallory"          # others cannot fake it
+    assert effective_user("NANDAN-CREATOR", "no submitter here", "nandan-creator") == "NANDAN-CREATOR"
+    assert effective_user("NANDAN-CREATOR", body.replace("web-0123456789ab", "web-XYZ"), "nandan-creator") == "NANDAN-CREATOR"
+    # two web visitors are different people; the same visitor twice hits the per-person limit
+    assert decide([{"user": "web-aaaaaaaaaaaa"}, {"user": "web-aaaaaaaaaaaa"}], "web-aaaaaaaaaaaa", "owner").allowed is False
+    assert decide([{"user": "web-aaaaaaaaaaaa"}, {"user": "web-aaaaaaaaaaaa"}], "web-bbbbbbbbbbbb", "owner").allowed is True
+
+
+def test_page_form_only_appears_with_a_valid_config(tmp_path):
+    from mcpdoctor.leaderboard import _index, load_site_config
+    cfg = tmp_path / "c.json"
+    assert load_site_config(cfg) == {}                                           # missing file
+    cfg.write_text(json.dumps({"submit_api": "https://w.example.workers.dev", "turnstile_sitekey": "0x4AAAAAAAbcdef"}))
+    good = load_site_config(cfg)
+    assert good
+    assert 'id="sf"' in _index("T", [], good) and 'id="sf"' not in _index("T", [], {})
+    assert "issues/new?template=scan-request.yml" in _index("T", [], {})          # fallback button
+    for bad in ({"submit_api": "http://insecure.example", "turnstile_sitekey": "0x4AAAAAAAbcdef"},
+                {"submit_api": 'https://x.example/"><script>alert(1)</script>', "turnstile_sitekey": "0x4AAAAAAAbcdef"},
+                {"submit_api": "https://w.example", "turnstile_sitekey": '"><img src=x>'}):
+        cfg.write_text(json.dumps(bad))
+        assert load_site_config(cfg) == {}

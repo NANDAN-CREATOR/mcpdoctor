@@ -29,6 +29,19 @@ from mcpdoctor.target import Target, TargetError
 DAILY_LIMIT = 5  # keep in sync with mcpdoctor.submission.DAILY_LIMIT (a test asserts this)
 PER_USER_LIMIT = 2
 _SLUG_OK = re.compile(r"^[a-z0-9][a-z0-9-]{0,80}$")
+_SITEKEY_OK = re.compile(r"^[0-9A-Za-z_-]{6,80}$")
+_API_OK = re.compile(r"^https://[A-Za-z0-9.-]+(/[A-Za-z0-9._~/-]*)?$")
+
+
+def load_site_config(path: str | Path | None) -> dict[str, str]:
+    """Optional ``site-config.json``: {"submit_api": "https://...workers.dev", "turnstile_sitekey": "..."}.
+    Both must be present and well-formed to switch on the on-page form; otherwise the issue-form button is shown."""
+    try:
+        raw = json.loads(Path(path or "site-config.json").read_text())
+    except (OSError, ValueError):
+        return {}
+    api, key = str(raw.get("submit_api", "")), str(raw.get("turnstile_sitekey", ""))
+    return {"submit_api": api, "turnstile_sitekey": key} if _API_OK.match(api) and _SITEKEY_OK.match(key) else {}
 
 
 def slugify(text: str) -> str:
@@ -110,7 +123,7 @@ def load_submissions(data_dir: Path | None, out: Path) -> list[dict[str, Any]]:
 
 
 async def build(entries_file: str | Path, out_dir: str | Path, base: ScanOptions,
-                submissions_dir: str | Path | None = None) -> list[Report]:
+                submissions_dir: str | Path | None = None, site_config: str | Path | None = None) -> list[Report]:
     title, entries = load_entries(entries_file)
     out = Path(out_dir)
     out.mkdir(parents=True, exist_ok=True)
@@ -149,7 +162,7 @@ async def build(entries_file: str | Path, out_dir: str | Path, base: ScanOptions
     rows += load_submissions(Path(submissions_dir) if submissions_dir else None, out)
     rows.sort(key=lambda r: (-(r["score"] or 0), r["name"]))
     reports.sort(key=lambda r: (-(r.scores.get("overall") or 0), r.target))
-    (out / "index.html").write_text(_index(title, rows))
+    (out / "index.html").write_text(_index(title, rows, load_site_config(site_config)))
     (out / "leaderboard.json").write_text(json.dumps({
         "schema": "mcpdoctor.leaderboard/2", "generated": datetime.now(UTC).isoformat(timespec="seconds"),
         "tool_version": __version__, "servers": rows}, indent=2) + "\n")
@@ -178,7 +191,53 @@ def _row_html(i: int, r: dict[str, Any]) -> str:
         f'<td class="issues">{issues}</td><td class="mini">{r["tools"]}</td></tr>')
 
 
-def _index(title: str, rows: list[dict[str, Any]]) -> str:
+_FORM_JS = r"""
+(function(){var f=document.getElementById('sf');if(!f)return;var API=f.dataset.api,REPO='NANDAN-CREATOR/mcpdoctor';
+var out=document.getElementById('sf-out'),btn=f.querySelector('button');
+function say(t,cls,link){out.className='note '+(cls||'');out.textContent=t;
+ if(link){out.appendChild(document.createTextNode(' '));var a=document.createElement('a');a.href=link.href;a.textContent=link.text;out.appendChild(a);}}
+function poll(n,i){fetch('https://api.github.com/repos/'+REPO+'/issues/'+n+'/comments').then(function(r){return r.json()}).then(function(list){
+ var all=Array.isArray(list)?list.map(function(c){return c.body||''}).join('\n'):'';var m;
+ if(/was not accepted/.test(all)){m=all.match(/\*\*Reason:\*\* (.+)/);say(m?m[1]:'The request was not accepted.','err');btn.disabled=false;return;}
+ if(/could not be completed/.test(all)){m=all.match(/\*\*Details:\*\* (.+)/);say('The test could not be completed. '+(m?m[1]:''),'err');btn.disabled=false;return;}
+ if(/Full report/.test(all)){m=all.match(/Result: (\d+)\/100, grade (\w)/);var l=all.match(/https:\/\/nandan-creator\.github\.io\/mcpdoctor\/(c-[a-z0-9-]+\.html)/);
+  say('Done! Score '+(m?m[1]+'/100 (grade '+m[2]+')':'')+'.','ok',l?{href:l[0],text:'Open the full report'}:null);btn.disabled=false;return;}
+ if(i>=45){say('Still running. Check back in a few minutes: ','',{href:'https://github.com/'+REPO+'/issues/'+n,text:'see progress'});btn.disabled=false;return;}
+ say('Testing your server... this takes one to three minutes ('+(i*10)+'s)');setTimeout(function(){poll(n,i+1)},10000);
+ }).catch(function(){setTimeout(function(){poll(n,i+1)},10000)});}
+f.addEventListener('submit',function(e){e.preventDefault();var t=f.querySelector('[name=cf-turnstile-response]');
+ btn.disabled=true;say('Sending your request...');
+ fetch(API,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({url:f.elements.url.value.trim(),consent:f.elements.consent.checked,token:t?t.value:''})})
+ .then(function(r){return r.json().then(function(j){return{ok:r.ok,j:j}})}).then(function(x){
+  if(!x.ok){say(x.j.error||'Something went wrong.','err');btn.disabled=false;if(window.turnstile)turnstile.reset();return;}
+  poll(x.j.issue,0);}).catch(function(){say('Could not reach the test service. Please try again.','err');btn.disabled=false;});});})();
+"""
+
+
+def _submit_block(config: dict[str, str]) -> str:
+    issue_btn = f'<a class="btn" href="{SUBMIT_URL}">Use the GitHub form instead</a>'
+    if not config:
+        return (f'<ol class="steps"><li><b>Open the form</b><span>Click the button below. It opens a short form on GitHub.</span></li>'
+                f'<li><b>Paste your server\'s address</b><span>It must be a public <code>https://</code> MCP server that you own or '
+                f'have permission to test.</span></li><li><b>Get your report</b><span>A robot tests it and replies with the score. '
+                f'It then appears on this page.</span></li></ol><div class="btns" style="margin-top:18px">'
+                f'<a class="btn primary" href="{SUBMIT_URL}">Request a test</a></div>')
+    api, key = escape(config["submit_api"], quote=True), escape(config["turnstile_sitekey"], quote=True)
+    return (
+        f'<div class="card"><form id="sf" data-api="{api}" style="display:grid;gap:14px">'
+        '<label><b>Your server\'s address</b><br><input name="url" type="url" required placeholder="https://example.com/mcp" '
+        'style="width:100%;padding:12px 14px;border:1px solid var(--line);border-radius:12px;background:var(--bg);color:var(--fg);font:inherit"></label>'
+        '<label style="display:flex;gap:10px;align-items:flex-start"><input name="consent" type="checkbox" required style="margin-top:6px">'
+        '<span>I own this server, or I have permission to test it, and I am happy for the result to be public.</span></label>'
+        f'<div class="cf-turnstile" data-sitekey="{key}"></div>'
+        '<div><button class="btn primary" type="submit" style="cursor:pointer;font:inherit;font-weight:600">Test my server</button></div>'
+        '<div id="sf-out" class="note" role="status" aria-live="polite">Free. Takes one to three minutes. No sign-up needed.</div>'
+        f'</form></div><div class="btns" style="margin-top:14px">{issue_btn}</div>'
+        '<script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>'
+        f'<script>{_FORM_JS}</script>')
+
+
+def _index(title: str, rows: list[dict[str, Any]], config: dict[str, str] | None = None) -> str:
     n = len(rows)
     avg = round(sum(r["score"] or 0 for r in rows) / n) if n else 0
     serious = sum(r["critical"] + r["high"] for r in rows)
@@ -229,12 +288,8 @@ whole score at 49 &mdash; one open door matters more than many tidy rooms.</p>
 <div class="legend">{legend}</div></section>
 
 <section id="submit"><h2>Get your own server tested</h2>
-<p class="sub">Free and takes about two minutes. You need a GitHub account (to open the request form).</p>
-<ol class="steps">
-<li><b>Open the form</b><span>Click the button below. It opens a short form on GitHub.</span></li>
-<li><b>Paste your server's address</b><span>It must be a public <code>https://</code> MCP server that you own or have permission to test.</span></li>
-<li><b>Get your report</b><span>A robot tests it and replies on your request with the score. It then appears on this page.</span></li></ol>
-<div class="btns" style="margin-top:18px"><a class="btn primary" href="{SUBMIT_URL}">Request a test</a></div>
+<p class="sub">Paste the public address of your MCP server and get a free score and a list of fixes.</p>
+{_submit_block(config or {})}
 <p class="note" style="margin-top:16px"><b>Fair-use limits:</b> to keep this free, only <b>{DAILY_LIMIT} servers per day</b>
 are tested in total ({PER_USER_LIMIT} per person). If today is full, try again tomorrow. Results are public. Only submit servers you are
 allowed to test. We never store logins or keys; servers that need a login can't be tested here &mdash; run MCPDoctor

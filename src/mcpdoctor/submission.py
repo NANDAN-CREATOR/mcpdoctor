@@ -45,6 +45,16 @@ def parse_issue_form(body: str) -> dict[str, str]:
     return sections
 
 
+def effective_user(login: str, body: str, owner: str) -> str:
+    """Web submissions are opened by the relay using the owner's token, so the issue author is the owner for everybody.
+    Their anonymous id is in the body. Only honoured when the author is the owner, so nobody else can fake it."""
+    if login.lower() == owner.lower():
+        who = parse_issue_form(body).get("Submitter", "").strip()
+        if re.fullmatch(r"web-[0-9a-f]{12}", who):
+            return who
+    return login
+
+
 def read_request(body: str) -> tuple[str, bool]:
     form = parse_issue_form(body)
     url = form.get("MCP server address", "").strip()

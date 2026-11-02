@@ -230,9 +230,13 @@ printed or written to reports. Default model names are in `evals/llm.py` and may
 A live leaderboard is published at **https://nandan-creator.github.io/mcpdoctor/**. Anyone can have a public MCP server
 tested for free:
 
-1. Open the form: **Issues > New issue > "Test my MCP server"** (or the "Test my server" button on the dashboard).
-2. Paste the public `https://` address and tick the permission box.
-3. A GitHub Action tests it and replies on the issue with the score; the result then appears on the dashboard.
+1. Paste the public `https://` address into the form on the dashboard and tick the permission box. No account needed.
+   (Or use the GitHub issue form: **Issues > New issue > "Test my MCP server"**.)
+2. A small free relay (Cloudflare Worker, `worker/submit-worker.js`) checks a spam challenge and opens the issue.
+3. A GitHub Action tests the server; the page shows progress, then the score and a link to the full report.
+
+The on-page form switches on when `site-config.json` contains the relay address and the Turnstile site key; until then
+the dashboard shows the GitHub issue button instead. Setup steps: [docs/WEB_FORM_SETUP.md](docs/WEB_FORM_SETUP.md).
 
 **Limits (to keep it free and safe):** 5 tests per UTC day in total, 2 per person; the repository owner is exempt from
 the per-person limit only. Counting is done by the workflow from the issues labelled `scan-accepted`.

@@ -27,6 +27,7 @@ from mcpdoctor.submission import (
     PER_USER_LIMIT,
     SubmissionError,
     decide,
+    effective_user,
     merge_index,
     read_request,
     utc_midnight,
@@ -68,7 +69,7 @@ def set_output(**values: str) -> None:
             fh.write(f"{k}={v}\n")
 
 
-def accepted_today(repo: str) -> list[dict[str, str]]:
+def accepted_today(repo: str, owner: str) -> list[dict[str, str]]:
     midnight = utc_midnight(datetime.now(UTC))
     issues = api("GET", f"/repos/{repo}/issues?labels=scan-accepted&state=all&per_page=100"
                         f"&since={midnight.strftime('%Y-%m-%dT%H:%M:%SZ')}") or []
@@ -78,7 +79,8 @@ def accepted_today(repo: str) -> list[dict[str, str]]:
             continue
         created = datetime.fromisoformat(i["created_at"].replace("Z", "+00:00"))
         if created >= midnight:
-            out.append({"user": (i.get("user") or {}).get("login", "")})
+            login = (i.get("user") or {}).get("login", "")
+            out.append({"user": effective_user(login, i.get("body") or "", owner)})
     return out
 
 
@@ -90,7 +92,8 @@ def cmd_gate() -> None:
         if not consent:
             raise SubmissionError("Please tick the box confirming that you own this server or have permission to test it.")
         url = validate_server_url(raw_url)
-        decision = decide(accepted_today(repo), user, owner)
+        who = effective_user(user, os.environ.get("ISSUE_BODY", ""), owner)
+        decision = decide(accepted_today(repo, owner), who, owner)
         if not decision.allowed:
             raise SubmissionError(decision.reason)
     except SubmissionError as exc:

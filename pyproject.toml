@@ -32,7 +32,8 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-dev = ["pytest>=8", "pytest-timeout>=2.3", "ruff>=0.6", "mypy>=1.10", "types-PyYAML", "types-jsonschema"]
+dev = [
+  "playwright>=1.40","pytest>=8", "pytest-timeout>=2.3", "ruff>=0.6", "mypy>=1.10", "types-PyYAML", "types-jsonschema"]
 
 [project.scripts]
 mcpdoctor = "mcpdoctor.cli:main"
