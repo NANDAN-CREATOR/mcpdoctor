@@ -9,7 +9,7 @@ body:
         A robot will test your server and reply here with a score. **Results are public.**
         Limits: 5 tests per day in total, 2 per person. Resets at 00:00 UTC.
         Only public `https://` servers that need no login can be tested here.
-        For anything else, run MCPDoctor yourself: `pip install mcpdoctor`.
+        For anything else, run MCPDoctor yourself: `pip install git+https://github.com/NANDAN-CREATOR/mcpdoctor`.
   - type: input
     id: url
     attributes:

@@ -166,6 +166,11 @@ async def build(entries_file: str | Path, out_dir: str | Path, base: ScanOptions
     (out / "leaderboard.json").write_text(json.dumps({
         "schema": "mcpdoctor.leaderboard/2", "generated": datetime.now(UTC).isoformat(timespec="seconds"),
         "tool_version": __version__, "servers": rows}, indent=2) + "\n")
+    og = Path(__file__).resolve().parent.parent.parent / "assets" / "og.png"
+    for candidate in (Path("assets/og.png"), og):
+        if candidate.is_file():
+            shutil.copyfile(candidate, out / "og.png")
+            break
     (out / ".nojekyll").write_text("")
     return reports
 
@@ -293,7 +298,7 @@ whole score at 49 &mdash; one open door matters more than many tidy rooms.</p>
 <p class="note" style="margin-top:16px"><b>Fair-use limits:</b> to keep this free, only <b>{DAILY_LIMIT} servers per day</b>
 are tested in total ({PER_USER_LIMIT} per person). If today is full, try again tomorrow. Results are public. Only submit servers you are
 allowed to test. We never store logins or keys; servers that need a login can't be tested here &mdash; run MCPDoctor
-yourself instead: <code>pip install mcpdoctor</code>.</p></section>
+yourself instead: <code>pip install git+https://github.com/NANDAN-CREATOR/mcpdoctor</code>.</p></section>
 
 <section><h2>Questions</h2>
 <details><summary>What does a good score mean?</summary><p>That our checks found nothing wrong. It does not prove a server is
@@ -303,7 +308,7 @@ odd inputs (like very long text) to see how it copes. Tools that look destructiv
 by default.</p></details>
 <details><summary>Can I remove my result?</summary><p>Yes. Open an issue on GitHub asking for removal and it will be deleted.</p></details>
 <details><summary>Can I run it myself instead?</summary><p>Yes, it is free and open source:
-<code>pip install mcpdoctor</code> then <code>mcpdoctor scan --url https://your-server/mcp</code>. See the
+<code>pip install git+https://github.com/NANDAN-CREATOR/mcpdoctor</code> then <code>mcpdoctor scan --url https://your-server/mcp</code>. See the
 <a href="{REPO}#readme">README</a>.</p></details></section>
 
 <footer>Refreshed {stamp} &middot; MCPDoctor {__version__} &middot; <a href="{REPO}">GitHub</a> &middot;

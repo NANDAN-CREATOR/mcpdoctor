@@ -133,8 +133,22 @@ def ring(score: int | float, grade: str) -> str:
             f'<div class="num"><div><b>{score}</b><span>/100 &middot; {escape(str(grade))}</span></div></div></div>')
 
 
+SITE = "https://nandan-creator.github.io/mcpdoctor"
+_FAVICON = ("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' "
+            "rx='16' fill='%234f46e5'/%3E%3Cpath d='M32 49S13 38 13 25c0-6 5-10 10-10 4 0 7 2 9 5 2-3 5-5 9-5 5 0 10 4 10 10 0 13-19 24-19 24z' "
+            "fill='white'/%3E%3C/svg%3E")
+
+
 def page(title: str, body: str, *, description: str = "") -> str:
-    desc = f'<meta name="description" content="{escape(description)}">' if description else ""
+    d = escape(description or "Free health and security scores for MCP servers used by AI assistants.", quote=True)
+    t = escape(title, quote=True)
+    desc = (f'<meta name="description" content="{d}"><meta property="og:type" content="website">'
+            f'<meta property="og:site_name" content="MCPDoctor"><meta property="og:title" content="{t}">'
+            f'<meta property="og:description" content="{d}"><meta property="og:image" content="{SITE}/og.png">'
+            f'<meta property="og:url" content="{SITE}/"><meta name="twitter:card" content="summary_large_image">'
+            f'<meta name="twitter:title" content="{t}"><meta name="twitter:description" content="{d}">'
+            f'<meta name="twitter:image" content="{SITE}/og.png"><link rel="icon" href="{_FAVICON}">'
+            '<meta name="theme-color" content="#4f46e5">')
     return f"""<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>{escape(title)}</title>{desc}<style>{CSS}</style></head><body>

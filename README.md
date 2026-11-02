@@ -1,5 +1,12 @@
 # MCPDoctor
 
+[![CI](https://github.com/NANDAN-CREATOR/mcpdoctor/actions/workflows/ci.yml/badge.svg)](https://github.com/NANDAN-CREATOR/mcpdoctor/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-blue.svg)](pyproject.toml)
+[![Live leaderboard](https://img.shields.io/badge/leaderboard-live-4f46e5.svg)](https://nandan-creator.github.io/mcpdoctor/)
+
+**[Test your MCP server on the live dashboard](https://nandan-creator.github.io/mcpdoctor/)** (free, 5 servers per day for everyone).
+
 **Test any MCP server before you trust it, or before you ship it.**
 
 MCP (Model Context Protocol) servers give AI agents tools: read files, query databases, call APIs. Most are written
@@ -60,7 +67,8 @@ server yourself. Use `--static-only` (never calls a tool) or `--sandbox` for cod
 
 ## Quick start
 ```bash
-pip install -e .            # from a clone; `pip install mcpdoctor` once published
+pip install git+https://github.com/NANDAN-CREATOR/mcpdoctor    # or `pip install -e .` from a clone
+# (a PyPI package will follow; until then install from GitHub)
 mcpdoctor check-env         # versions, Docker availability, which LLM keys are set
 
 # local server over stdio (everything after -- is the command)
