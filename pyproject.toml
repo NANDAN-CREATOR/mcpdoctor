@@ -1,0 +1,79 @@
+[build-system]
+requires = ["hatchling>=1.25"]
+build-backend = "hatchling.build"
+
+[project]
+name = "mcpdoctor"
+dynamic = ["version"]
+description = "Run-time quality, safety and agent-behaviour testing for MCP (Model Context Protocol) servers."
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+authors = [{ name = "Aman Nandan" }]
+keywords = ["mcp", "model-context-protocol", "ai-agents", "security", "testing", "llm", "evals"]
+classifiers = [
+  "Development Status :: 4 - Beta",
+  "Environment :: Console",
+  "Intended Audience :: Developers",
+  "License :: OSI Approved :: MIT License",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Topic :: Security",
+  "Topic :: Software Development :: Quality Assurance",
+  "Topic :: Software Development :: Testing",
+]
+dependencies = [
+  "mcp>=2.0,<3",
+  "click>=8.1",
+  "jsonschema>=4.20",
+  "pyyaml>=6.0",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8", "pytest-timeout>=2.3", "ruff>=0.6", "mypy>=1.10", "types-PyYAML", "types-jsonschema"]
+
+[project.scripts]
+mcpdoctor = "mcpdoctor.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/NANDAN-CREATOR/mcpdoctor"
+Issues = "https://github.com/NANDAN-CREATOR/mcpdoctor/issues"
+
+[tool.hatch.version]
+path = "src/mcpdoctor/__init__.py"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/mcpdoctor"]
+
+[tool.hatch.build.targets.sdist]
+include = ["src", "examples", "tests", "docs", "README.md", "LICENSE", "action.yml"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra"
+timeout = 180
+markers = [
+  "slow: end-to-end tests that spawn real MCP server subprocesses",
+  "docker: tests that need a running Docker daemon",
+]
+
+[tool.ruff]
+line-length = 130
+target-version = "py311"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "S", "SIM"]
+ignore = ["E501", "UP042", "S101", "S603", "S607", "S310", "S104", "S311", "S105", "S108"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["S", "B"]
+"examples/**" = ["S", "B", "E501"]
+
+[tool.mypy]
+python_version = "3.11"
+ignore_missing_imports = true
+warn_unused_ignores = true
+check_untyped_defs = true

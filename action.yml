@@ -1,0 +1,106 @@
+name: MCPDoctor
+description: Test an MCP server for quality, security and agent-readiness; upload SARIF to GitHub code scanning.
+author: NANDAN-CREATOR
+branding:
+  icon: shield
+  color: blue
+
+inputs:
+  command:
+    description: Command that starts a local (stdio) MCP server, e.g. "python server.py".
+    required: false
+  url:
+    description: URL of a remote Streamable HTTP MCP server (use instead of command).
+    required: false
+  fail-on:
+    description: Fail the job if a finding is at or above this severity (none, info, low, medium, high, critical).
+    default: high
+  min-score:
+    description: Fail the job if the overall score is below this (0-100). Empty disables the check.
+    default: ""
+  static-only:
+    description: Analyse definitions only and never call a tool.
+    default: "false"
+  extra-args:
+    description: Additional arguments passed to `mcpdoctor scan`.
+    default: ""
+  upload-sarif:
+    description: Upload results to GitHub code scanning (needs security-events write permission).
+    default: "true"
+  comment:
+    description: Post the Markdown report as a pull request comment (needs pull-requests write permission).
+    default: "true"
+  version:
+    description: MCPDoctor version to install from PyPI (empty = latest). Ignored if mcpdoctor is already installed.
+    default: ""
+
+outputs:
+  score:
+    description: Overall score 0-100.
+    value: ${{ steps.scan.outputs.score }}
+  grade:
+    description: Letter grade A-F.
+    value: ${{ steps.scan.outputs.grade }}
+
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-python@v5
+      with:
+        python-version: "3.12"
+    - name: Install MCPDoctor
+      shell: bash
+      run: |
+        if ! command -v mcpdoctor >/dev/null; then
+          if [ -n "${{ inputs.version }}" ]; then pip install "mcpdoctor==${{ inputs.version }}"; else pip install mcpdoctor; fi
+        fi
+    - name: Scan
+      id: scan
+      shell: bash
+      env:
+        INPUT_COMMAND: ${{ inputs.command }}
+        INPUT_URL: ${{ inputs.url }}
+        INPUT_FAIL_ON: ${{ inputs.fail-on }}
+        INPUT_MIN_SCORE: ${{ inputs.min-score }}
+        INPUT_STATIC: ${{ inputs.static-only }}
+        INPUT_EXTRA: ${{ inputs.extra-args }}
+      run: |
+        # Values reach the shell only through env vars (never interpolated into the script) to avoid injection.
+        args=(scan --sarif mcpdoctor.sarif --markdown mcpdoctor.md --json mcpdoctor.json --fail-on "$INPUT_FAIL_ON")
+        [ -n "$INPUT_MIN_SCORE" ] && args+=(--min-score "$INPUT_MIN_SCORE")
+        [ "$INPUT_STATIC" = "true" ] && args+=(--static-only)
+        # shellcheck disable=SC2206
+        [ -n "$INPUT_EXTRA" ] && args+=($INPUT_EXTRA)
+        set +e
+        if [ -n "$INPUT_URL" ]; then
+          mcpdoctor "${args[@]}" --url "$INPUT_URL"
+        else
+          # shellcheck disable=SC2206
+          cmd=($INPUT_COMMAND)
+          mcpdoctor "${args[@]}" -- "${cmd[@]}"
+        fi
+        status=$?
+        set -e
+        python - <<'PY' >> "$GITHUB_OUTPUT"
+        import json
+        try:
+            d = json.load(open("mcpdoctor.json"))
+            print(f"score={d['scores']['overall']}")
+            print(f"grade={d['scores']['grade']}")
+        except Exception:
+            pass
+        PY
+        [ -f mcpdoctor.md ] && cat mcpdoctor.md >> "$GITHUB_STEP_SUMMARY"
+        exit $status
+    - name: Upload SARIF
+      if: always() && inputs.upload-sarif == 'true' && hashFiles('mcpdoctor.sarif') != ''
+      uses: github/codeql-action/upload-sarif@v3
+      with:
+        sarif_file: mcpdoctor.sarif
+        category: mcpdoctor
+    - name: Comment on the pull request
+      if: always() && inputs.comment == 'true' && github.event_name == 'pull_request' && hashFiles('mcpdoctor.md') != ''
+      uses: marocchino/sticky-pull-request-comment@v2
+      with:
+        header: mcpdoctor
+        path: mcpdoctor.md

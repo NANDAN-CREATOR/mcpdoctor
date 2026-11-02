@@ -1,0 +1,26 @@
+name: Self-test (dogfooding the action)
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+  security-events: write
+  pull-requests: write
+
+jobs:
+  clean-server-passes:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -e .
+      - uses: ./
+        with:
+          command: python examples/servers/good_server.py
+          fail-on: high
+          min-score: 90
+          upload-sarif: "false"

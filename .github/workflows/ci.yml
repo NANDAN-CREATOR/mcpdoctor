@@ -1,0 +1,64 @@
+name: CI
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -e ".[dev]"
+      - run: ruff check src tests
+      - run: mypy src
+      - name: Rule docs are up to date
+        run: |
+          python scripts/gen_rules_doc.py
+          git diff --exit-code docs/RULES.md
+
+  test:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+        python: ["3.11", "3.12", "3.13"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+          cache: pip
+      - run: pip install -e ".[dev]"
+      - name: Tests (includes the defect-corpus benchmark)
+        run: pytest -q -s -m "not docker"
+
+  docker-sandbox:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -e ".[dev]"
+      - name: Build the demo sandbox image
+        run: docker build -t mcpdoctor-demo -f sandbox/Dockerfile .
+      - name: Scan a demo server inside the locked-down container
+        run: >
+          mcpdoctor scan --sandbox --image mcpdoctor-demo --probe-all --fail-on none
+          -- python /app/examples/servers/bad_files.py
+          --json sandbox-report.json
+      - name: The sandbox found the planted defects
+        run: python -c "import json;d=json.load(open('sandbox-report.json'));ids={f['rule_id'] for f in d['findings']};print(sorted(ids));assert {'D001','D007'}<=ids"

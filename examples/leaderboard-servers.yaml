@@ -1,0 +1,17 @@
+title: MCPDoctor demo leaderboard
+# Add real servers here. Each entry is scanned in its own subprocess; one broken entry never stops the run.
+# Only list servers you are allowed to test, and prefer `static_only: true` for third-party code you have not read.
+servers:
+  - name: demo - clean server
+    command: [python, examples/servers/good_server.py]
+  - name: demo - tool poisoning
+    command: [python, examples/servers/bad_poisoned.py]
+    static_only: true
+  - name: demo - path traversal
+    command: [python, examples/servers/bad_files.py]
+  - name: demo - SQL injection
+    command: [python, examples/servers/bad_sql.py]
+  - name: demo - command injection
+    command: [python, examples/servers/bad_exec.py]
+  - name: demo - sloppy quality
+    command: [python, examples/servers/bad_quality.py]
