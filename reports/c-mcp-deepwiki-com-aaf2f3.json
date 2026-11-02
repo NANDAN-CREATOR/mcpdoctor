@@ -2,8 +2,8 @@
   "schema": "mcpdoctor.report/1",
   "tool_version": "0.1.0",
   "target": "mcp.deepwiki.com/mcp",
-  "started_at": "2026-11-02T20:46:27+00:00",
-  "duration_s": 8.81,
+  "started_at": "2026-11-02T20:56:29+00:00",
+  "duration_s": 2.03,
   "server": {
     "name": "DeepWiki",
     "version": "2.14.3",
@@ -30,25 +30,13 @@
     }
   ],
   "counts": {
-    "info": 0,
+    "info": 1,
     "low": 3,
     "medium": 1,
-    "high": 1,
+    "high": 0,
     "critical": 0
   },
   "findings": [
-    {
-      "rule_id": "S008",
-      "title": "Remote endpoint accepts unauthenticated requests",
-      "severity": "high",
-      "category": "security",
-      "message": "https://mcp.deepwiki.com/mcp completed an MCP initialize request without any credentials (HTTP 200).",
-      "tool": null,
-      "evidence": "event: message\r data: {\"jsonrpc\":\"2.0\",\"id\":1,\"result\":{\"protocolVersion\":\"2025-06-18\",\"capabilities\":{\"experimental\":{},\"prompts\":{\"listChanged\":true},\"resourc",
-      "fix": "Require OAuth 2.1 / bearer tokens on the MCP endpoint.",
-      "confidence": "high",
-      "fingerprint": "bbb06ca1339ea365"
-    },
     {
       "rule_id": "S009",
       "title": "Remote endpoint does not validate the Origin header",
@@ -96,6 +84,18 @@
       "fix": "Set read_only_hint and destructive_hint on every tool.",
       "confidence": "high",
       "fingerprint": "436f0d8db38cc671"
+    },
+    {
+      "rule_id": "S008",
+      "title": "Remote endpoint accepts unauthenticated requests",
+      "severity": "info",
+      "category": "security",
+      "message": "https://mcp.deepwiki.com/mcp completed an MCP initialize request without any credentials (HTTP 200). All 3 tools look read-only, so open access may be intended for a public service. Add authentication if any of this data is private.",
+      "tool": null,
+      "evidence": "event: message\r data: {\"jsonrpc\":\"2.0\",\"id\":1,\"result\":{\"protocolVersion\":\"2025-06-18\",\"capabilities\":{\"experimental\":{},\"prompts\":{\"listChanged\":true},\"resourc",
+      "fix": "Require OAuth 2.1 / bearer tokens on the MCP endpoint.",
+      "confidence": "high",
+      "fingerprint": "ab24f38516ef6f1d"
     }
   ],
   "coverage": [
@@ -196,30 +196,30 @@
     "latency_ms": {
       "ask_wiki_question": {
         "calls": 18,
-        "p50": 123,
-        "p95": 144
+        "p50": 28,
+        "p95": 73
       },
       "read_wiki_contents": {
         "calls": 12,
-        "p50": 125,
-        "p95": 131
+        "p50": 24,
+        "p95": 42
       },
       "read_wiki_structure": {
         "calls": 12,
-        "p50": 123,
-        "p95": 144
+        "p50": 26,
+        "p95": 44
       }
     },
     "calls_made": 54,
     "server_restarts": 0
   },
   "scores": {
-    "overall": 74,
-    "grade": "C",
+    "overall": 94,
+    "grade": "A",
     "categories": {
       "security": {
-        "score": 72,
-        "grade": "C",
+        "score": 92,
+        "grade": "A",
         "assessed": true
       },
       "quality": {
@@ -233,9 +233,7 @@
         "assessed": true
       }
     },
-    "caps": [
-      "high-severity security finding present: overall capped at 74"
-    ],
+    "caps": [],
     "model": "mcpdoctor.score/1"
   },
   "options": {
