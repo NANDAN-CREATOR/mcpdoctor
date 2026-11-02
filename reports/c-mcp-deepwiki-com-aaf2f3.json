@@ -1,0 +1,248 @@
+{
+  "schema": "mcpdoctor.report/1",
+  "tool_version": "0.1.0",
+  "target": "mcp.deepwiki.com/mcp",
+  "started_at": "2026-11-02T20:46:27+00:00",
+  "duration_s": 8.81,
+  "server": {
+    "name": "DeepWiki",
+    "version": "2.14.3",
+    "protocol_version": "2025-11-25"
+  },
+  "tools": [
+    {
+      "name": "ask_wiki_question",
+      "fingerprint": "17f66c2ae6cfbdbfba1d8bc284e8313c7d2794f7b59e23e3c0e7561f34ec3c85",
+      "token_estimate": 129,
+      "read_only_hint": null
+    },
+    {
+      "name": "read_wiki_contents",
+      "fingerprint": "e61b6b5f10323c64cf25dde44fc9f41b800a8c26725160ad59385a5789d9f8ea",
+      "token_estimate": 70,
+      "read_only_hint": null
+    },
+    {
+      "name": "read_wiki_structure",
+      "fingerprint": "f0e1337d72630f19689ceb288e5bc7062bd8c1e1afb2052c2da1dba2c0015477",
+      "token_estimate": 74,
+      "read_only_hint": null
+    }
+  ],
+  "counts": {
+    "info": 0,
+    "low": 3,
+    "medium": 1,
+    "high": 1,
+    "critical": 0
+  },
+  "findings": [
+    {
+      "rule_id": "S008",
+      "title": "Remote endpoint accepts unauthenticated requests",
+      "severity": "high",
+      "category": "security",
+      "message": "https://mcp.deepwiki.com/mcp completed an MCP initialize request without any credentials (HTTP 200).",
+      "tool": null,
+      "evidence": "event: message\r data: {\"jsonrpc\":\"2.0\",\"id\":1,\"result\":{\"protocolVersion\":\"2025-06-18\",\"capabilities\":{\"experimental\":{},\"prompts\":{\"listChanged\":true},\"resourc",
+      "fix": "Require OAuth 2.1 / bearer tokens on the MCP endpoint.",
+      "confidence": "high",
+      "fingerprint": "bbb06ca1339ea365"
+    },
+    {
+      "rule_id": "S009",
+      "title": "Remote endpoint does not validate the Origin header",
+      "severity": "medium",
+      "category": "security",
+      "message": "https://mcp.deepwiki.com/mcp accepted a request with Origin: http://evil.mcpdoctor.invalid (HTTP 200).",
+      "tool": null,
+      "evidence": "event: message\r data: {\"jsonrpc\":\"2.0\",\"id\":1,\"result\":{\"protocolVersion\":\"2025-06-18\",\"capabilities\":{\"experimental\":{},\"prompts\":{\"listChanged\":true},\"resourc",
+      "fix": "Reject requests whose Origin is not on an allow-list, and bind to 127.0.0.1 for local servers.",
+      "confidence": "high",
+      "fingerprint": "2324737168093bf1"
+    },
+    {
+      "rule_id": "Q004",
+      "title": "No guidance on when to use (or not use) the tool",
+      "severity": "low",
+      "category": "quality",
+      "message": "3 of 3 tools give no 'use when / do not use' guidance: ask_wiki_question, read_wiki_contents, read_wiki_structure.",
+      "tool": null,
+      "evidence": null,
+      "fix": "Add a 'Use when...' / 'Do not use for...' sentence that separates the tool from its neighbours.",
+      "confidence": "high",
+      "fingerprint": "6ae1679afc944765"
+    },
+    {
+      "rule_id": "Q008",
+      "title": "Two tools overlap too closely",
+      "severity": "low",
+      "category": "quality",
+      "message": "Tools 'read_wiki_contents' and 'read_wiki_structure' have 45% overlapping descriptions and identical parameters.",
+      "tool": "read_wiki_contents",
+      "evidence": null,
+      "fix": "Merge them, or make each description say what distinguishes it from the other.",
+      "confidence": "high",
+      "fingerprint": "bc331c456225a12f"
+    },
+    {
+      "rule_id": "Q011",
+      "title": "No behaviour annotations",
+      "severity": "low",
+      "category": "quality",
+      "message": "3 of 3 tools have no read_only_hint/destructive_hint: ask_wiki_question, read_wiki_contents, read_wiki_structure.",
+      "tool": null,
+      "evidence": null,
+      "fix": "Set read_only_hint and destructive_hint on every tool.",
+      "confidence": "high",
+      "fingerprint": "436f0d8db38cc671"
+    }
+  ],
+  "coverage": [
+    {
+      "name": "transport-security",
+      "status": "ran",
+      "detail": "no cleartext remote transport"
+    },
+    {
+      "name": "authentication",
+      "status": "ran",
+      "detail": "endpoint accepts anonymous requests"
+    },
+    {
+      "name": "origin-validation",
+      "status": "ran",
+      "detail": "foreign Origin accepted"
+    },
+    {
+      "name": "lint",
+      "status": "ran",
+      "detail": "3 tool definition(s) checked for quality"
+    },
+    {
+      "name": "tool-metadata-scan",
+      "status": "ran",
+      "detail": "descriptions, schemas, defaults and server instructions scanned for hidden instructions, invisible characters, encoded payloads and secrets"
+    },
+    {
+      "name": "tool-pinning",
+      "status": "skipped",
+      "detail": "no --lockfile given"
+    },
+    {
+      "name": "contract",
+      "status": "ran",
+      "detail": "3 tool(s) called with schema-derived arguments (x2 each when they succeed)"
+    },
+    {
+      "name": "input-validation",
+      "status": "ran",
+      "detail": "7 wrong-type / missing-argument call(s)"
+    },
+    {
+      "name": "env-leak",
+      "status": "skipped",
+      "detail": "no isolation environment (remote target): canary secrets cannot be planted"
+    },
+    {
+      "name": "path-traversal",
+      "status": "not_applicable",
+      "detail": "no path-like string parameters found"
+    },
+    {
+      "name": "sql-write-guard",
+      "status": "skipped",
+      "detail": "write attempts (D005) only run with --probe-all, preferably in the sandbox"
+    },
+    {
+      "name": "sql-injection",
+      "status": "ran",
+      "detail": "3 search-style and 0 SQL-execution parameter(s) tested"
+    },
+    {
+      "name": "command-injection",
+      "status": "ran",
+      "detail": "4 string parameter(s) tested with shell-metacharacter markers (POSIX shells)"
+    },
+    {
+      "name": "ssrf",
+      "status": "not_applicable",
+      "detail": "no URL-like parameters found"
+    },
+    {
+      "name": "unbounded-output",
+      "status": "not_applicable",
+      "detail": "no limit/count parameters found"
+    },
+    {
+      "name": "definition-drift",
+      "status": "ran",
+      "detail": "tool list re-read after 42 calls and compared by hash"
+    },
+    {
+      "name": "robustness",
+      "status": "ran",
+      "detail": "12 unusual-input call(s) (long string, NUL byte, empty string)"
+    }
+  ],
+  "evaluation": {
+    "contract": {
+      "tested": 3,
+      "passed": 0,
+      "domain_errors": 3,
+      "failed": 0,
+      "skipped_tools": {}
+    },
+    "latency_ms": {
+      "ask_wiki_question": {
+        "calls": 18,
+        "p50": 123,
+        "p95": 144
+      },
+      "read_wiki_contents": {
+        "calls": 12,
+        "p50": 125,
+        "p95": 131
+      },
+      "read_wiki_structure": {
+        "calls": 12,
+        "p50": 123,
+        "p95": 144
+      }
+    },
+    "calls_made": 54,
+    "server_restarts": 0
+  },
+  "scores": {
+    "overall": 74,
+    "grade": "C",
+    "categories": {
+      "security": {
+        "score": 72,
+        "grade": "C",
+        "assessed": true
+      },
+      "quality": {
+        "score": 91,
+        "grade": "A",
+        "assessed": true
+      },
+      "reliability": {
+        "score": 100,
+        "grade": "A",
+        "assessed": true
+      }
+    },
+    "caps": [
+      "high-severity security finding present: overall capped at 74"
+    ],
+    "model": "mcpdoctor.score/1"
+  },
+  "options": {
+    "static_only": false,
+    "probe_all": false,
+    "sandbox": false,
+    "transport": "http",
+    "llm": null
+  }
+}

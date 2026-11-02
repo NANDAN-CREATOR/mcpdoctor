@@ -1,0 +1,17 @@
+[
+  {
+    "name": "mcp.deepwiki.com/mcp",
+    "kind": "community",
+    "subtitle": "community submission",
+    "score": 74,
+    "grade": "C",
+    "security": 72,
+    "quality": 91,
+    "reliability": 100,
+    "critical": 0,
+    "high": 1,
+    "tools": 3,
+    "slug": "c-mcp-deepwiki-com-aaf2f3",
+    "scanned": "2026-11-02"
+  }
+]
