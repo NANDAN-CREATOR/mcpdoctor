@@ -307,7 +307,7 @@ def _check_output_schema(ctx: ProbeContext, t: ToolInfo, rec: CallRecord) -> Non
             "B002", f"Tool '{t.name}' declares an output schema but returned no structured content.", tool=t.name))
         return
     try:
-        jsonschema.validate(rec.structured, t.output_schema)
+        jsonschema.validate(rec.structured, t.output_schema or {})
     except jsonschema.ValidationError as exc:
         ctx.add(make_finding(
             "B002", f"Tool '{t.name}' result violates its output schema: {exc.message[:160]}.", tool=t.name,

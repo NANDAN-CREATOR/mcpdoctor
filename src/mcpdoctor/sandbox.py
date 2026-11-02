@@ -13,6 +13,7 @@ import secrets
 import shutil
 import subprocess
 from dataclasses import dataclass, field
+from pathlib import Path
 
 from mcpdoctor.target import Isolation, Target, TargetError
 
@@ -91,10 +92,19 @@ def build_docker_command(cfg: SandboxConfig, command: list[str], iso: Isolation,
     return argv
 
 
+def _make_readable(root: Path) -> None:
+    """The container runs as an unprivileged user (65534); the temp dirs are private to the host user by default,
+    so open them for reading (they hold only canary values and are mounted read-only)."""
+    root.chmod(0o755)
+    for path in root.rglob("*"):
+        path.chmod(0o755 if path.is_dir() else 0o644)
+
+
 def sandbox_target(target: Target, cfg: SandboxConfig, iso: Isolation) -> Target:
     """Wrap a stdio target so that it runs inside the container."""
     if target.kind != "stdio":
         raise TargetError("--sandbox only applies to local (stdio) servers; remote URLs are not run by MCPDoctor")
+    _make_readable(iso.root)
     iso.server_canary_path = CANARY_IN_CONTAINER
     argv = build_docker_command(cfg, target.command, iso, target.env)
     return Target(kind="stdio", label=target.label, command=argv, env={}, cwd=None, sandboxed=True)

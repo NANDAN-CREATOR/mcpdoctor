@@ -58,7 +58,7 @@ jobs:
       - name: Scan a demo server inside the locked-down container
         run: >
           mcpdoctor scan --sandbox --image mcpdoctor-demo --probe-all --fail-on none
-          -- python /app/examples/servers/bad_files.py
           --json sandbox-report.json
+          -- python /app/examples/servers/bad_files.py
       - name: The sandbox found the planted defects
         run: python -c "import json;d=json.load(open('sandbox-report.json'));ids={f['rule_id'] for f in d['findings']};print(sorted(ids));assert {'D001','D007'}<=ids"

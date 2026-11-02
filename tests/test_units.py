@@ -332,3 +332,13 @@ def test_terminal_report_strips_escape_codes():
     out = render_terminal(r, verbose=True)
     assert "\x1b[2J" not in out and "pwned" not in out and "‮" not in out
     assert "boom" in out
+
+
+def test_sandbox_makes_canary_dirs_readable_for_unprivileged_container_user():
+    iso = Isolation.create()
+    try:
+        sandbox_target(Target.from_command(["python", "s.py"]), SandboxConfig(image="i"), iso)
+        assert iso.root.stat().st_mode & 0o005 == 0o005
+        assert iso.file_canary_path.stat().st_mode & 0o004
+    finally:
+        iso.cleanup()
