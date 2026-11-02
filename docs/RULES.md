@@ -353,7 +353,7 @@ Generated from `src/mcpdoctor/rules.py` by `scripts/gen_rules_doc.py`. Do not ed
 - **Executes tools:** yes
 - **References:** CWE-306
 
-**Why it matters.** Anyone who can reach the URL can list and call every tool.
+**Why it matters.** Anyone who can reach the URL can list and call every tool. (Reported as info instead of high when every tool looks read-only, because open access is normal for public documentation or search services.)
 
 **How to fix.** Require OAuth 2.1 / bearer tokens on the MCP endpoint.
 

@@ -342,3 +342,33 @@ def test_sandbox_makes_canary_dirs_readable_for_unprivileged_container_user():
         assert iso.file_canary_path.stat().st_mode & 0o004
     finally:
         iso.cleanup()
+
+
+# ------------------------------------------------------------------ open access to a public read-only service
+def _s008():
+    return make_finding("S008", "https://x/mcp completed an MCP initialize request without any credentials (HTTP 200).")
+
+
+def test_open_access_is_info_for_read_only_public_services():
+    from mcpdoctor.http_checks import soften_open_access
+    tools = [tool("read_wiki_structure"), tool("ask_question"), tool("search_docs")]
+    out = soften_open_access([_s008()], tools)
+    assert out[0].severity is Severity.INFO and "read-only" in out[0].message
+    assert compute(out, {"security"})["overall"] == 100
+
+
+def test_open_access_stays_high_when_any_tool_can_write_or_run_code():
+    from mcpdoctor.http_checks import soften_open_access
+    for tools in ([tool("read_page"), tool("delete_page")], [tool("update_note")], [tool("run_command")],
+                  [tool("get_thing"), tool("send_email")], [tool("do_stuff")], []):
+        assert soften_open_access([_s008()], tools)[0].severity is Severity.HIGH, [t.name for t in tools]
+    # a command-execution surface anywhere keeps it high even if names look harmless
+    assert soften_open_access([_s008(), make_finding("S005", "x", tool="get_x")], [tool("get_x")])[0].severity is Severity.HIGH
+    # an explicit destructive annotation wins over a read-style name
+    bad = tool("get_x")
+    bad.annotations = {"destructive_hint": True}
+    assert soften_open_access([_s008()], [bad])[0].severity is Severity.HIGH
+    # annotated read-only counts even with an unusual name
+    ok = tool("zorp")
+    ok.annotations = {"read_only_hint": True}
+    assert soften_open_access([_s008()], [ok])[0].severity is Severity.INFO

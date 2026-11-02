@@ -125,7 +125,8 @@ _RULES: list[Rule] = [
          "Tool calls and results (which often contain credentials and private data) can be read or altered in transit.",
          "Serve over HTTPS.", ("CWE-319",)),
     Rule("S008", "Remote endpoint accepts unauthenticated requests", S, HIGH,
-         "Anyone who can reach the URL can list and call every tool.",
+         "Anyone who can reach the URL can list and call every tool. (Reported as info instead of high when every tool looks "
+         "read-only, because open access is normal for public documentation or search services.)",
          "Require OAuth 2.1 / bearer tokens on the MCP endpoint.", ("CWE-306",), True),
     Rule("S009", "Remote endpoint does not validate the Origin header", S, MED,
          "Without Origin validation a malicious web page can drive a local server through the browser (DNS rebinding).",

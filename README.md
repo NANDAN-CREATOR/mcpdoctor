@@ -285,6 +285,8 @@ the per-person limit only. Counting is done by the workflow from the issues labe
 - **Not yet verified end to end in the environment this was built in:** the Docker sandbox (no Docker daemon was
   available; the `docker run` command construction is unit-tested, and `ci.yml` runs a real sandbox job) and real LLM
   providers (the evaluation is tested against a local mock OpenAI-compatible server; provider model names may need `--model`).
+- Open access (S008) is downgraded to info when every tool looks read-only (annotated, or a read-style name such as
+  `read_`/`get_`/`search_`); that judgement is by name and annotation, so a misleadingly named writer is not caught.
 - Heuristic checks can false-positive. Use the `ignore` setting, with a comment on why.
 
 ## Measured results

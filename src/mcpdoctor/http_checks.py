@@ -5,12 +5,14 @@ from __future__ import annotations
 import json
 import urllib.error
 import urllib.request
+from dataclasses import replace
 from typing import Any
 
 from mcpdoctor import __version__
-from mcpdoctor.models import Coverage, Finding, Severity
+from mcpdoctor.models import Coverage, Finding, Severity, ToolInfo
 from mcpdoctor.rules import make_finding
 from mcpdoctor.target import Target
+from mcpdoctor.textutil import name_tokens
 
 _INIT = {
     "jsonrpc": "2.0",
@@ -80,3 +82,37 @@ def check_http_target(target: Target, timeout: float = 8.0) -> tuple[list[Findin
     else:
         cover.append(Coverage("origin-validation", "ran", f"foreign Origin refused or inconclusive (HTTP {status2})"))
     return findings, cover
+
+
+_READ_VERBS = frozenset(["read", "get", "list", "search", "ask", "find", "fetch", "query", "describe", "show", "view",
+                         "lookup", "count", "summarize", "explain", "check", "retrieve", "browse"])
+
+
+def tool_looks_read_only(tool: ToolInfo) -> bool:
+    """Evidence that a tool only reads: annotated read-only, or a read-style name with no write/destructive word."""
+    from mcpdoctor.probes import _DESTRUCTIVE  # local import: probes is heavy and not needed for the HTTP checks
+
+    if tool.destructive is True:
+        return False
+    toks = name_tokens(tool.name)
+    if any(t in _DESTRUCTIVE for t in toks):
+        return False
+    return tool.read_only is True or (bool(toks) and toks[0] in _READ_VERBS)
+
+
+def soften_open_access(findings: list[Finding], tools: list[ToolInfo]) -> list[Finding]:
+    """Anonymous access to a public, read-only service (documentation, search) is a design choice, not a flaw.
+
+    S008 is downgraded to INFO only when *every* tool looks read-only and no command-execution surface (S005) was found.
+    Anything that can write, delete or run code stays HIGH: open access to those is dangerous.
+    """
+    if not tools or any(f.rule_id == "S005" for f in findings) or not all(tool_looks_read_only(t) for t in tools):
+        return findings
+    out = []
+    for f in findings:
+        if f.rule_id == "S008":
+            f = replace(f, severity=Severity.INFO,
+                        message=f"{f.message} All {len(tools)} tools look read-only, so open access may be intended for a "
+                                "public service. Add authentication if any of this data is private.")
+        out.append(f)
+    return out

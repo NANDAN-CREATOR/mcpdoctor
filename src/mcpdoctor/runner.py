@@ -12,7 +12,7 @@ from pathlib import Path
 from mcpdoctor import __version__, scoring
 from mcpdoctor.evals.agent import generate_tasks, load_cached_tasks, run_agent_eval, save_tasks
 from mcpdoctor.evals.llm import ChatClient, LlmConfig, LlmError
-from mcpdoctor.http_checks import check_http_target
+from mcpdoctor.http_checks import check_http_target, soften_open_access
 from mcpdoctor.lint import LintConfig, lint_tools
 from mcpdoctor.models import Coverage, Finding, Report
 from mcpdoctor.pin import compare_lock, read_lock
@@ -109,6 +109,7 @@ async def scan(target: Target, opts: ScanOptions) -> Report:
 
         # ---- static analysis (never executes a tool)
         report.findings.extend(lint_tools(tools, opts.lint))
+        report.findings = soften_open_access(report.findings, tools)
         report.coverage.append(Coverage("lint", "ran", f"{len(tools)} tool definition(s) checked for quality"))
         report.findings.extend(scan_metadata(tools, session.identity))
         report.coverage.append(Coverage(
