@@ -52,7 +52,12 @@ runs:
       shell: bash
       run: |
         if ! command -v mcpdoctor >/dev/null; then
-          if [ -n "${{ inputs.version }}" ]; then pip install "mcpdoctor==${{ inputs.version }}"; else pip install mcpdoctor; fi
+          if [ -n "${{ inputs.version }}" ]; then
+            pip install "mcpdoctor==${{ inputs.version }}"
+          else
+            # Install the exact code this action ref points at (works before/without a PyPI release).
+            pip install "${{ github.action_path }}"
+          fi
         fi
     - name: Scan
       id: scan
